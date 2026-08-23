@@ -12,10 +12,16 @@ window.DRAW_MATH_URL = 'math4/es5';
 window.DRAWIO_CONFIG = null;
 urlParams['sync'] = 'manual';
 
-// Force Japanese Language by default
-window.mxLanguage = 'ja';
-window.mxDefaultLanguage = 'ja';
-urlParams['lang'] = 'ja';
+// Force Japanese Language on Web if not in Electron desktop file:// mode
+if (!window.mxIsElectron && window.location.protocol !== 'file:')
+{
+	window.mxLanguage = window.mxLanguage || 'ja';
+	window.mxDefaultLanguage = 'ja';
+	if (!urlParams['lang'])
+	{
+		urlParams['lang'] = 'ja';
+	}
+}
 
 // Google Drive Integration Defaults
 window.DRAWIO_GOOGLE_APP_ID = window.DRAWIO_GOOGLE_APP_ID || '671128082532';
