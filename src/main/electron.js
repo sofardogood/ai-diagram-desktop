@@ -683,11 +683,27 @@ app.whenReady().then(() =>
 	// Persistent session configuration for AI Browser (ChatGPT, Claude, Google Login, etc.)
 	const aiBrowserSession = session.fromPartition('persist:drawio_ai_browser');
 	const chromeUserAgent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+	const safariUserAgent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.6 Safari/605.1.15';
 	aiBrowserSession.setUserAgent(chromeUserAgent);
 
 	// Ensure headers never send Electron identifiers to Google/OpenAI/Claude to allow OAuth sign-in
 	aiBrowserSession.webRequest.onBeforeSendHeaders((details, callback) => {
-		details.requestHeaders['User-Agent'] = chromeUserAgent;
+		const isGoogle = details.url.includes('google.com') || details.url.includes('google.co.jp') || details.url.includes('accounts.google');
+		
+		// For Google OAuth, use Safari User-Agent to bypass Google's "disallowed_useragent" check
+		if (isGoogle)
+		{
+			details.requestHeaders['User-Agent'] = safariUserAgent;
+			delete details.requestHeaders['sec-ch-ua'];
+			delete details.requestHeaders['sec-ch-ua-mobile'];
+			delete details.requestHeaders['sec-ch-ua-platform'];
+			delete details.requestHeaders['sec-ch-ua-platform-version'];
+		}
+		else
+		{
+			details.requestHeaders['User-Agent'] = chromeUserAgent;
+		}
+
 		callback({ cancel: false, requestHeaders: details.requestHeaders });
 	});
 
@@ -1773,10 +1789,17 @@ app.on('will-finish-launching', function()
  
 app.on('web-contents-created', (event, contents) => {
 	const isWebview = contents.getType() === 'webview';
+	const isAiSession = contents.session === aiBrowserSession;
+	const isAiBrowser = isWebview || isAiSession;
 
-	// Disable navigation for main draw.io editor, but allow webviews to navigate freely for logins
+	if (isAiBrowser)
+	{
+		contents.setUserAgent(chromeUserAgent);
+	}
+
+	// Disable navigation for main draw.io editor, but allow webviews and AI OAuth popups to navigate freely
 	contents.on('will-navigate', (event, navigationUrl) => {
-		if (isWebview)
+		if (isAiBrowser)
 		{
 			return;
 		}
@@ -1784,10 +1807,8 @@ app.on('web-contents-created', (event, contents) => {
 	});
 
 	// Limit creation of new windows
-	if (isWebview)
+	if (isAiBrowser)
 	{
-		const chromeUA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
-		contents.setUserAgent(chromeUA);
 		contents.setWindowOpenHandler(({ url }) => {
 			return {
 				action: 'allow',
