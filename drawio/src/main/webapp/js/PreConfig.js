@@ -5,9 +5,13 @@
 // Overrides of global vars need to be pre-loaded
 window.DRAWIO_PUBLIC_BUILD = true;
 window.EXPORT_URL = 'REPLACE_WITH_YOUR_IMAGE_SERVER';
-window.DRAWIO_BASE_URL = null; // Replace with path to base of deployment, e.g. https://www.example.com/folder
-window.DRAWIO_VIEWER_URL = null; // Replace your path to the viewer js, e.g. https://www.example.com/js/viewer.min.js
-window.DRAWIO_LIGHTBOX_URL = null; // Replace with your lightbox URL, eg. https://www.example.com
+window.DRAWIO_BASE_URL = '.';
+window.DRAWIO_VIEWER_URL = null;
+window.DRAWIO_LIGHTBOX_URL = null;
 window.DRAW_MATH_URL = 'math4/es5';
-window.DRAWIO_CONFIG = null; // Replace with your custom draw.io configurations. For more details, https://www.drawio.com/doc/faq/configure-diagram-editor
+window.DRAWIO_CONFIG = null;
 urlParams['sync'] = 'manual';
+
+// Google Drive Integration Defaults
+window.DRAWIO_GOOGLE_APP_ID = window.DRAWIO_GOOGLE_APP_ID || '671128082532';
+window.DRAWIO_GOOGLE_CLIENT_ID = window.DRAWIO_GOOGLE_CLIENT_ID || '671128082532-jhphbq6d0e1gnsus9mn7vf8a6fjn10mp.apps.googleusercontent.com';

@@ -10,11 +10,16 @@ window.ICON_SERVICE_PATH = null;
 if (typeof mxscript === 'function')
 {
 	mxscript('js/aiAssistant.js');
+	mxscript('js/authGate.js');
 }
 else
 {
 	var s = document.createElement('script');
 	s.src = 'js/aiAssistant.js';
 	document.head.appendChild(s);
+
+	var s2 = document.createElement('script');
+	s2.src = 'js/authGate.js';
+	document.head.appendChild(s2);
 }
 

@@ -2122,6 +2122,24 @@ mxStencilRegistry.allowEval = false;
 					{
 						window.drawioAi.showAiSettingsDialog(tb.editorUi);
 					}, p);
+
+					m.addSeparator(p);
+
+					m.addItem('🔑 ログインパスワードの変更...', null, function()
+					{
+						if (window.drawioAuthGate && window.drawioAuthGate.showPasswordChangeDialog)
+						{
+							window.drawioAuthGate.showPasswordChangeDialog(tb.editorUi);
+						}
+					}, p);
+
+					m.addItem('🔒 画面をロック (ログアウト)', null, function()
+					{
+						if (window.drawioAuthGate && window.drawioAuthGate.logout)
+						{
+							window.drawioAuthGate.logout();
+						}
+					}, p);
 				}, rect.left, rect.bottom + 4, evt);
 				mxEvent.consume(evt);
 			});
