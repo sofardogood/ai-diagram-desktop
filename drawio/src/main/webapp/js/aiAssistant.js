@@ -5,14 +5,14 @@
  */
 (function()
 {
-	if (typeof Draw === 'undefined')
-	{
-		window.Draw = {};
-	}
+	var isInitialized = false;
 
-	Draw.loadPlugin(function(ui)
+	function initPlugin(ui)
 	{
+		if (isInitialized || !ui || !ui.editor || !ui.editor.graph) return;
+		isInitialized = true;
 		window.drawioAiUi = ui;
+
 		var graph = ui.editor.graph;
 		var model = graph.getModel();
 
@@ -962,11 +962,7 @@
 			{
 				if (document.getElementById('drawio-ai-toolbar-btn')) return;
 
-				var tbContainer = document.querySelector('.geToolbar');
-				if (!tbContainer && ui.toolbar && ui.toolbar.container)
-				{
-					tbContainer = ui.toolbar.container;
-				}
+				var tbContainer = document.querySelector('.geToolbar') || (ui.toolbar && ui.toolbar.container);
 				if (!tbContainer) return;
 
 				// AI ▾ Button
@@ -1060,8 +1056,7 @@
 		}
 
 		// Inject buttons after UI is fully ready
-		setTimeout(injectAiToolbarButtons, 100);
-		setTimeout(injectAiToolbarButtons, 1000);
+		setInterval(injectAiToolbarButtons, 500);
 
 		// Register Actions
 		ui.actions.addAction('aiAutoConnect', runAutoConnect);
@@ -1077,5 +1072,51 @@
 		};
 
 		console.log('✨ Universal draw.io AI Assistant Plugin Initialized (Web & Desktop)');
-	});
+	}
+
+	// 1. If Draw.loadPlugin exists, register callback
+	if (typeof window.Draw === 'undefined')
+	{
+		window.Draw = {};
+	}
+
+	if (typeof window.Draw.loadPlugin === 'function')
+	{
+		window.Draw.loadPlugin(initPlugin);
+	}
+	else
+	{
+		window.Draw.loadPlugin = function(cb)
+		{
+			if (typeof App !== 'undefined' && App.DrawPlugins)
+			{
+				App.DrawPlugins.push(cb);
+			}
+			else
+			{
+				var checkUi = function()
+				{
+					if (window.ui && window.ui.editor) cb(window.ui);
+					else setTimeout(checkUi, 100);
+				};
+				checkUi();
+			}
+		};
+		window.Draw.loadPlugin(initPlugin);
+	}
+
+	// 2. Poll for editorUi to ensure initialization on any load timing
+	function pollEditorUi()
+	{
+		var curUi = window.ui || (window.App && window.App.main && window.App.main.editorUi);
+		if (curUi && curUi.editor && curUi.editor.graph)
+		{
+			initPlugin(curUi);
+		}
+		else
+		{
+			setTimeout(pollEditorUi, 200);
+		}
+	}
+	pollEditorUi();
 })();
