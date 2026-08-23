@@ -711,7 +711,22 @@ app.whenReady().then(() =>
 		callback({ cancel: false, requestHeaders: details.requestHeaders });
 	});
 
+	// Immediately persist cookies to SQLite disk storage upon every login / update
+	try {
+		aiBrowserSession.cookies.on('changed', (event, cookie, cause, removed) => {
+			try {
+				aiBrowserSession.cookies.flushStore();
+			} catch (e) {}
+		});
+	} catch (e) {}
+
 	app.on('before-quit', () => {
+		try {
+			aiBrowserSession.cookies.flushStore();
+		} catch (e) {}
+	});
+
+	app.on('will-quit', () => {
 		try {
 			aiBrowserSession.cookies.flushStore();
 		} catch (e) {}
