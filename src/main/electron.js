@@ -685,6 +685,12 @@ app.whenReady().then(() =>
 	const chromeUserAgent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
 	aiBrowserSession.setUserAgent(chromeUserAgent);
 
+	// Ensure headers never send Electron identifiers to Google/OpenAI/Claude to allow OAuth sign-in
+	aiBrowserSession.webRequest.onBeforeSendHeaders((details, callback) => {
+		details.requestHeaders['User-Agent'] = chromeUserAgent;
+		callback({ cancel: false, requestHeaders: details.requestHeaders });
+	});
+
 	app.on('before-quit', () => {
 		try {
 			aiBrowserSession.cookies.flushStore();
@@ -1766,14 +1772,22 @@ app.on('will-finish-launching', function()
 });
  
 app.on('web-contents-created', (event, contents) => {
-	// Disable navigation
-	contents.on('will-navigate', (event, navigationUrl) => {
-		event.preventDefault()
-	})
+	const isWebview = contents.getType() === 'webview';
 
-	// Limit creation of new windows (we also override window.open)
-	if (contents.getType() === 'webview')
+	// Disable navigation for main draw.io editor, but allow webviews to navigate freely for logins
+	contents.on('will-navigate', (event, navigationUrl) => {
+		if (isWebview)
+		{
+			return;
+		}
+		event.preventDefault();
+	});
+
+	// Limit creation of new windows
+	if (isWebview)
 	{
+		const chromeUA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+		contents.setUserAgent(chromeUA);
 		contents.setWindowOpenHandler(({ url }) => {
 			return {
 				action: 'allow',
@@ -1804,11 +1818,11 @@ app.on('web-contents-created', (event, contents) => {
 							contextIsolation: true
 						}
 					}
-				}
+				};
 			} 
 			else if (!openExternal(url))
 			{
-				return {action: 'deny'}
+				return {action: 'deny'};
 			}
 		});
 	}
@@ -1820,7 +1834,7 @@ app.on('web-contents-created', (event, contents) => {
 		webPreferences.webviewTag = false;
 		webPreferences.partition = 'persist:drawio_ai_browser';
 	});
-})
+});
 
 autoUpdater.on('error', e => notifyUpdateFailure(e, 'autoUpdater error event'))
 
