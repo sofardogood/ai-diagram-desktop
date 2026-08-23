@@ -1577,7 +1577,7 @@ mxStencilRegistry.allowEval = false;
 			var wv = document.createElement('webview');
 			wv.setAttribute('partition', 'persist:drawio_ai_browser');
 			wv.setAttribute('allowpopups', 'true');
-			wv.setAttribute('useragent', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.3 Safari/605.1.15');
+			wv.setAttribute('useragent', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:133.0) Gecko/20100101 Firefox/133.0');
 			wv.src = url;
 			wv.style.flex = '1';
 			wv.style.width = '100%';

@@ -87,7 +87,7 @@ if (nativeTheme)
 const UPDATE_DOWNLOAD_URL = 'https://get.draw.io';
 let updateFailureDialogShown = false;
 let aiBrowserSession = null;
-const aiUserAgent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.3 Safari/605.1.15';
+const aiUserAgent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:133.0) Gecko/20100101 Firefox/133.0';
 
 // Shows a user-facing fallback message when the in-app updater fails for any reason.
 // Deduped within a short window so a single underlying failure (which can fan out into
