@@ -1248,6 +1248,61 @@ mxStencilRegistry.allowEval = false;
 		var currentWidth = parseInt(localStorage.getItem('.aiBrowserWidth') || '520', 10);
 		if (isNaN(currentWidth) || currentWidth < 360) currentWidth = 520;
 
+		function isAutoSticky()
+		{
+			return isAutoStickyEnabled;
+		}
+
+		function updateAutoStickyBtnUI()
+		{
+			if (!autoStickyBtn) return;
+			if (isAutoStickyEnabled)
+			{
+				autoStickyBtn.innerHTML = '<span style="display:inline-flex;align-items:center;gap:5px;pointer-events:none;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background-color:#1e8e3e;"></span>📌 自動付箋: <b>ON</b></span>';
+				autoStickyBtn.setAttribute('title', '【自動付箋モード: 有効中】\nブラウザでコピーしたテキストが自動でキャンバスへ付箋として貼り付けられます。（クリックでOFF）');
+				autoStickyBtn.style.backgroundColor = 'light-dark(#e6f4ea, #1e3a29)';
+				autoStickyBtn.style.color = 'light-dark(#137333, #81c995)';
+				autoStickyBtn.style.border = '1px solid light-dark(#34a853, #81c995)';
+				autoStickyBtn.style.boxShadow = '0 0 0 1px rgba(52, 168, 83, 0.2)';
+			}
+			else
+			{
+				autoStickyBtn.innerHTML = '<span style="display:inline-flex;align-items:center;gap:5px;pointer-events:none;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background-color:#80868b;"></span>📌 自動付箋: <span style="opacity:0.75;">OFF</span></span>';
+				autoStickyBtn.setAttribute('title', '【自動付箋モード: 無効】\nクリックしてONにすると、ブラウザでコピーしたテキストが自動で付箋になります。');
+				autoStickyBtn.style.backgroundColor = 'light-dark(#f8f9fa, #292a2d)';
+				autoStickyBtn.style.color = 'inherit';
+				autoStickyBtn.style.border = '1px solid light-dark(#dadce0, #5f6368)';
+				autoStickyBtn.style.boxShadow = 'none';
+			}
+		}
+
+		function toggleAutoSticky(forcedValue)
+		{
+			if (typeof forcedValue === 'boolean')
+			{
+				isAutoStickyEnabled = forcedValue;
+			}
+			else
+			{
+				isAutoStickyEnabled = !isAutoStickyEnabled;
+			}
+			localStorage.setItem('.aiAutoStickyNote', isAutoStickyEnabled ? 'true' : 'false');
+			try
+			{
+				if (typeof electron !== 'undefined' && electron.clipboard)
+				{
+					lastClipboardText = electron.clipboard.readText() || '';
+				}
+			}
+			catch (e) {}
+			updateAutoStickyBtnUI();
+			if (window.drawioAiUi && typeof showToast === 'function')
+			{
+				showToast(window.drawioAiUi, isAutoStickyEnabled ? '📌 自動付箋モードを ON にしました（コピーした内容が自動で付箋になります）' : '📌 自動付箋モードを OFF にしました');
+			}
+			return isAutoStickyEnabled;
+		}
+
 		function insertStickyNote(text)
 		{
 			if (!text || typeof text !== 'string') return null;
@@ -1779,53 +1834,30 @@ mxStencilRegistry.allowEval = false;
 
 			// Auto Sticky Note Toggle Button
 			autoStickyBtn = document.createElement('button');
-			function updateAutoStickyBtnUI()
-			{
-				if (isAutoStickyEnabled)
-				{
-					autoStickyBtn.innerHTML = '<span style="display:inline-flex;align-items:center;gap:4px;">📌 自動付箋: <b style="color:#137333;">ON</b></span>';
-					autoStickyBtn.setAttribute('title', '自動付箋モード: 有効中\nブラウザ上でコピーしたテキストが自動的にキャンバスへ付箋として貼り付けられます。（クリックでOFF）');
-					autoStickyBtn.style.backgroundColor = 'light-dark(#e6f4ea, #1e3a29)';
-					autoStickyBtn.style.color = 'light-dark(#137333, #81c995)';
-					autoStickyBtn.style.borderColor = 'light-dark(#34a853, #81c995)';
-				}
-				else
-				{
-					autoStickyBtn.innerHTML = '<span style="display:inline-flex;align-items:center;gap:4px;">📌 自動付箋: <span style="opacity:0.7;">OFF</span></span>';
-					autoStickyBtn.setAttribute('title', '自動付箋モード: 無効\nクリックしてONにすると、ブラウザ上でコピーしたテキストが自動的に付箋として貼り付けられます。');
-					autoStickyBtn.style.backgroundColor = 'light-dark(#f8f9fa, #292a2d)';
-					autoStickyBtn.style.color = 'inherit';
-					autoStickyBtn.style.borderColor = 'light-dark(#dadce0, #5f6368)';
-				}
-			}
-
-			autoStickyBtn.style.padding = '3px 8px';
+			autoStickyBtn.id = 'drawio-ai-auto-sticky-btn';
+			autoStickyBtn.style.padding = '3px 10px';
 			autoStickyBtn.style.fontSize = '11px';
 			autoStickyBtn.style.fontWeight = '600';
 			autoStickyBtn.style.borderRadius = '4px';
-			autoStickyBtn.style.border = '1px solid light-dark(#dadce0, #5f6368)';
 			autoStickyBtn.style.cursor = 'pointer';
 			autoStickyBtn.style.marginLeft = 'auto';
+			autoStickyBtn.style.userSelect = 'none';
+			autoStickyBtn.style.outline = 'none';
+			autoStickyBtn.style.transition = 'all 0.15s ease-in-out';
 			updateAutoStickyBtnUI();
 
-			autoStickyBtn.addEventListener('click', function()
+			function handleToggle(e)
 			{
-				isAutoStickyEnabled = !isAutoStickyEnabled;
-				localStorage.setItem('.aiAutoStickyNote', isAutoStickyEnabled ? 'true' : 'false');
-				try
+				if (e)
 				{
-					if (typeof electron !== 'undefined' && electron.clipboard)
-					{
-						lastClipboardText = electron.clipboard.readText() || '';
-					}
+					e.preventDefault();
+					e.stopPropagation();
 				}
-				catch (e) {}
-				updateAutoStickyBtnUI();
-				if (window.drawioAiUi && typeof showToast === 'function')
-				{
-					showToast(window.drawioAiUi, isAutoStickyEnabled ? '📌 自動付箋モードを ON にしました（コピーした内容が自動で付箋になります）' : '📌 自動付箋モードを OFF にしました');
-				}
-			});
+				toggleAutoSticky();
+			}
+
+			autoStickyBtn.onclick = handleToggle;
+			autoStickyBtn.onmousedown = function(e) { e.stopPropagation(); };
 			presetRow.appendChild(autoStickyBtn);
 			header.appendChild(presetRow);
 
@@ -2020,7 +2052,9 @@ mxStencilRegistry.allowEval = false;
 			switchTab: switchTab,
 			closeTab: closeTab,
 			openPreset: openPreset,
-			insertStickyNote: insertStickyNote
+			insertStickyNote: insertStickyNote,
+			isAutoSticky: isAutoSticky,
+			toggleAutoSticky: toggleAutoSticky
 		};
 	})();
 
@@ -2067,6 +2101,11 @@ mxStencilRegistry.allowEval = false;
 					m.addItem('右側ブラウザパネルを開く (ChatGPT / Claude)', null, function()
 					{
 						window.drawioAiBrowser.toggle();
+					}, p);
+
+					m.addItem(window.drawioAiBrowser.isAutoSticky() ? '📌 自動付箋モード: ON (クリックでOFF)' : '📌 自動付箋モード: OFF (クリックでON)', null, function()
+					{
+						window.drawioAiBrowser.toggleAutoSticky();
 					}, p);
 
 					m.addItem('AI 生成・チャットパネルを開く', null, function()
