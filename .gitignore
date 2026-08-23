@@ -1,0 +1,15 @@
+.idea
+node_modules
+.project
+/dist/
+/.classpath
+/.settings
+.DS_Store
+.claude/
+.env
+.env.*
+*.log
+*.pem
+*.key
+.system_generated/
+
