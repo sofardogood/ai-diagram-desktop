@@ -16,6 +16,34 @@
 		var graph = ui.editor.graph;
 		var model = graph.getModel();
 
+		// Enforce Light Mode permanently (disable dark mode)
+		if (typeof Editor !== 'undefined')
+		{
+			Editor.darkMode = false;
+			Editor.isDarkMode = function() { return false; };
+		}
+		if (typeof EditorUi !== 'undefined')
+		{
+			EditorUi.prototype.isAutoDarkMode = function() { return false; };
+			EditorUi.prototype.setDarkMode = function(c)
+			{
+				Editor.darkMode = false;
+				var cont = (typeof mxUtils !== 'undefined' && mxUtils.isAncestorNode(document.body, this.container)) || this.editor == null ? this.container : this.editor.graph.container;
+				if (cont != null)
+				{
+					cont.classList.remove('geDarkMode');
+					cont.style.colorScheme = 'light';
+				}
+				document.body.classList.remove('geDarkMode');
+				document.body.style.colorScheme = 'light';
+				this.fireEvent(new mxEventObject('darkModeChanged'));
+			};
+		}
+		if (ui.setDarkMode)
+		{
+			ui.setDarkMode(false);
+		}
+
 		// Synchronize keys with Editor.aiGlobals and localStorage
 		function syncConfiguration(cfg)
 		{

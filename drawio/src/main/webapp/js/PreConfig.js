@@ -9,8 +9,13 @@ window.DRAWIO_BASE_URL = '.';
 window.DRAWIO_VIEWER_URL = null;
 window.DRAWIO_LIGHTBOX_URL = null;
 window.DRAW_MATH_URL = 'math4/es5';
-window.DRAWIO_CONFIG = null;
+window.DRAWIO_CONFIG = Object.assign(window.DRAWIO_CONFIG || {}, {
+	darkMode: false,
+	enableCssDarkMode: false,
+	defaultAdaptiveColors: 'none'
+});
 urlParams['sync'] = 'manual';
+urlParams['dark'] = '0';
 
 // Force Japanese Language on Web if not in Electron desktop file:// mode
 if (!window.mxIsElectron && window.location.protocol !== 'file:')

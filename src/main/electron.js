@@ -3,7 +3,7 @@ import { promises as fsProm } from 'fs';
 import path from 'path';
 import url from 'url';
 import {Menu as menu, shell, dialog, session, screen, 
-		clipboard, nativeImage, ipcMain, app, BrowserWindow} from 'electron';
+		clipboard, nativeImage, ipcMain, app, BrowserWindow, nativeTheme} from 'electron';
 import crc from 'crc';
 import zlib from 'zlib';
 import log from'electron-log';
@@ -76,9 +76,13 @@ let manualUpdateCheck = false; // Set when the user clicks "Check for updates" s
 autoUpdater.logger = log
 autoUpdater.logger.transports.file.level = 'error'
 autoUpdater.logger.transports.console.level = 'error'
-// autoDownload is always false: we trigger downloadUpdate() explicitly so silent vs. interactive paths can branch on manualUpdateCheck
 autoUpdater.autoDownload = false
 autoUpdater.autoInstallOnAppQuit = silentUpdate
+
+if (nativeTheme)
+{
+	nativeTheme.themeSource = 'light';
+}
 
 const UPDATE_DOWNLOAD_URL = 'https://get.draw.io';
 let updateFailureDialogShown = false;
@@ -346,6 +350,7 @@ var queryObj = {
 	'browser': 0,
 	'picker': 0,
 	'mode': 'device',
+	'dark': 0,
 	'export': 'https://convert.diagrams.net/node/export',
 	'disableUpdate': disableUpdate? 1 : 0,
 	'enableSpellCheck': enableSpellCheck? 1 : 0,
