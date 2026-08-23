@@ -1237,12 +1237,137 @@ mxStencilRegistry.allowEval = false;
 		var tabListContainer = null;
 		var webviewContainer = null;
 		var urlInput = null;
+		var autoStickyBtn = null;
 		var isOpen = false;
 		var tabs = []; // [{ id, title, url, webview, titleSpan }]
 		var activeTabId = null;
 		var tabCounter = 1;
+		var isAutoStickyEnabled = localStorage.getItem('.aiAutoStickyNote') === 'true';
+		var lastClipboardText = '';
+		var stickyNoteCounter = 0;
 		var currentWidth = parseInt(localStorage.getItem('.aiBrowserWidth') || '520', 10);
 		if (isNaN(currentWidth) || currentWidth < 360) currentWidth = 520;
+
+		function insertStickyNote(text)
+		{
+			if (!text || typeof text !== 'string') return null;
+			var cleanText = text.trim();
+			if (!cleanText) return null;
+
+			var ui = window.drawioAiUi;
+			if (!ui || !ui.editor || !ui.editor.graph)
+			{
+				console.warn('draw.io editor not ready for sticky note insertion');
+				return null;
+			}
+
+			var graph = ui.editor.graph;
+			var model = graph.getModel();
+			var parent = graph.getDefaultParent();
+
+			// Calculate optimal size based on text content
+			var lines = cleanText.split('\n');
+			var maxLineLen = 0;
+			for (var i = 0; i < lines.length; i++)
+			{
+				if (lines[i].length > maxLineLen) maxLineLen = lines[i].length;
+			}
+
+			var w = Math.min(360, Math.max(180, Math.min(280, maxLineLen * 9 + 40)));
+			var h = Math.min(480, Math.max(100, Math.max(lines.length * 22 + 40, Math.ceil(cleanText.length / 18) * 20 + 40)));
+
+			// Position sticky note in visible canvas center with cascading offset
+			var view = graph.view;
+			var scale = view.scale || 1;
+			var translate = view.translate || { x: 0, y: 0 };
+			var container = graph.container;
+
+			var visibleCenterX = (-translate.x + (container.clientWidth / 2) / scale);
+			var visibleCenterY = (-translate.y + (container.clientHeight / 2) / scale);
+
+			// Cascading offset so multiple notes stack nicely without full overlap
+			var offset = (stickyNoteCounter % 7) * 24;
+			stickyNoteCounter++;
+
+			var posX = Math.max(20, Math.round(visibleCenterX - (w / 2) + offset));
+			var posY = Math.max(20, Math.round(visibleCenterY - (h / 2) + offset));
+
+			// Classic pleasant sticky note palette colors
+			var colors = [
+				{ fill: '#FFF9B2', stroke: '#d6b656' }, // Yellow
+				{ fill: '#D5E8D4', stroke: '#82B366' }, // Mint Green
+				{ fill: '#DAE8FC', stroke: '#6C8EBF' }, // Soft Blue
+				{ fill: '#F8CECC', stroke: '#B85450' }, // Pastel Pink
+				{ fill: '#FFE6CC', stroke: '#D79B00' }  // Warm Orange
+			];
+			var color = colors[(stickyNoteCounter - 1) % colors.length];
+
+			// Style: shape=note with folded corner, shadow, proper line wrapping & padding
+			var noteStyle = 'shape=note;whiteSpace=wrap;html=1;size=16;' +
+				'fillColor=' + color.fill + ';strokeColor=' + color.stroke + ';' +
+				'fontColor=#222222;fontSize=13;align=left;verticalAlign=top;spacing=10;spacingTop=6;shadow=1;';
+
+			model.beginUpdate();
+			var vertex = null;
+			try
+			{
+				vertex = graph.insertVertex(parent, null, cleanText, posX, posY, w, h, noteStyle);
+				graph.setSelectionCell(vertex);
+				graph.scrollCellToVisible(vertex);
+			}
+			catch (err)
+			{
+				console.error('Failed to insert sticky note:', err);
+			}
+			finally
+			{
+				model.endUpdate();
+			}
+
+			// Show quick toast feedback
+			try
+			{
+				if (typeof showToast === 'function')
+				{
+					showToast(ui, '📌 付箋をキャンバスに貼り付けました');
+				}
+			}
+			catch (e) {}
+
+			return vertex;
+		}
+
+		// Initialize clipboard watcher to auto-paste sticky notes on copy
+		try
+		{
+			if (typeof electron !== 'undefined' && electron.clipboard)
+			{
+				lastClipboardText = electron.clipboard.readText() || '';
+			}
+		}
+		catch (e) {}
+
+		setInterval(function()
+		{
+			if (!isOpen || !isAutoStickyEnabled) return;
+			try
+			{
+				if (typeof electron !== 'undefined' && electron.clipboard)
+				{
+					var currentText = electron.clipboard.readText();
+					if (currentText && currentText.trim() && currentText !== lastClipboardText)
+					{
+						lastClipboardText = currentText;
+						// Ignore diagram XML or excessive large files
+						if (currentText.length < 50000 && !currentText.startsWith('<mxfile') && !currentText.startsWith('<mxGraphModel'))
+						{
+							insertStickyNote(currentText);
+						}
+					}
+				}
+			}
+			catch (e) {}
+		}, 400);
 
 		function updateLayoutShift()
 		{
@@ -1612,7 +1737,7 @@ mxStencilRegistry.allowEval = false;
 			tabRow.appendChild(closePanelBtn);
 			header.appendChild(tabRow);
 
-			// Row 2: Preset Quick Buttons
+			// Row 2: Preset Quick Buttons & Auto-Sticky Toggle
 			var presetRow = document.createElement('div');
 			presetRow.style.display = 'flex';
 			presetRow.style.alignItems = 'center';
@@ -1651,9 +1776,60 @@ mxStencilRegistry.allowEval = false;
 			presetGroup.appendChild(createPresetBtn('Gemini', 'https://gemini.google.com'));
 			presetGroup.appendChild(createPresetBtn('Perplexity', 'https://www.perplexity.ai'));
 			presetRow.appendChild(presetGroup);
+
+			// Auto Sticky Note Toggle Button
+			autoStickyBtn = document.createElement('button');
+			function updateAutoStickyBtnUI()
+			{
+				if (isAutoStickyEnabled)
+				{
+					autoStickyBtn.innerHTML = '<span style="display:inline-flex;align-items:center;gap:4px;">📌 自動付箋: <b style="color:#137333;">ON</b></span>';
+					autoStickyBtn.setAttribute('title', '自動付箋モード: 有効中\nブラウザ上でコピーしたテキストが自動的にキャンバスへ付箋として貼り付けられます。（クリックでOFF）');
+					autoStickyBtn.style.backgroundColor = 'light-dark(#e6f4ea, #1e3a29)';
+					autoStickyBtn.style.color = 'light-dark(#137333, #81c995)';
+					autoStickyBtn.style.borderColor = 'light-dark(#34a853, #81c995)';
+				}
+				else
+				{
+					autoStickyBtn.innerHTML = '<span style="display:inline-flex;align-items:center;gap:4px;">📌 自動付箋: <span style="opacity:0.7;">OFF</span></span>';
+					autoStickyBtn.setAttribute('title', '自動付箋モード: 無効\nクリックしてONにすると、ブラウザ上でコピーしたテキストが自動的に付箋として貼り付けられます。');
+					autoStickyBtn.style.backgroundColor = 'light-dark(#f8f9fa, #292a2d)';
+					autoStickyBtn.style.color = 'inherit';
+					autoStickyBtn.style.borderColor = 'light-dark(#dadce0, #5f6368)';
+				}
+			}
+
+			autoStickyBtn.style.padding = '3px 8px';
+			autoStickyBtn.style.fontSize = '11px';
+			autoStickyBtn.style.fontWeight = '600';
+			autoStickyBtn.style.borderRadius = '4px';
+			autoStickyBtn.style.border = '1px solid light-dark(#dadce0, #5f6368)';
+			autoStickyBtn.style.cursor = 'pointer';
+			autoStickyBtn.style.marginLeft = 'auto';
+			updateAutoStickyBtnUI();
+
+			autoStickyBtn.addEventListener('click', function()
+			{
+				isAutoStickyEnabled = !isAutoStickyEnabled;
+				localStorage.setItem('.aiAutoStickyNote', isAutoStickyEnabled ? 'true' : 'false');
+				try
+				{
+					if (typeof electron !== 'undefined' && electron.clipboard)
+					{
+						lastClipboardText = electron.clipboard.readText() || '';
+					}
+				}
+				catch (e) {}
+				updateAutoStickyBtnUI();
+				if (window.drawioAiUi && typeof showToast === 'function')
+				{
+					showToast(window.drawioAiUi, isAutoStickyEnabled ? '📌 自動付箋モードを ON にしました（コピーした内容が自動で付箋になります）' : '📌 自動付箋モードを OFF にしました');
+				}
+			});
+			presetRow.appendChild(autoStickyBtn);
 			header.appendChild(presetRow);
 
-			// Row 3: Navigation buttons & URL bar
+			// Row 3: Navigation buttons, URL bar & Quick Add Note
 			var navRow = document.createElement('div');
 			navRow.style.display = 'flex';
 			navRow.style.alignItems = 'center';
@@ -1736,6 +1912,46 @@ mxStencilRegistry.allowEval = false;
 				}
 			});
 			navRow.appendChild(urlInput);
+
+			// Manual Quick "＋ 付箋化" Button
+			var addNoteBtn = createNavBtn('＋ 付箋化', '選択中のテキストまたはクリップボード内容を付箋としてキャンバスに追加', function()
+			{
+				var active = getActiveTab();
+				if (active && active.webview)
+				{
+					active.webview.executeJavaScript('window.getSelection().toString()').then(function(selText)
+					{
+						if (selText && selText.trim())
+						{
+							insertStickyNote(selText);
+						}
+						else
+						{
+							var clipText = typeof electron !== 'undefined' && electron.clipboard ? electron.clipboard.readText() : '';
+							if (clipText && clipText.trim() && !clipText.startsWith('<mxfile'))
+							{
+								insertStickyNote(clipText);
+							}
+							else if (window.drawioAiUi)
+							{
+								window.drawioAiUi.alert('ブラウザ上でテキストを選択するか、コピーしてから押してください。');
+							}
+						}
+					}).catch(function()
+					{
+						var clipText = typeof electron !== 'undefined' && electron.clipboard ? electron.clipboard.readText() : '';
+						if (clipText && clipText.trim() && !clipText.startsWith('<mxfile'))
+						{
+							insertStickyNote(clipText);
+						}
+					});
+				}
+			});
+			addNoteBtn.style.fontWeight = '600';
+			addNoteBtn.style.color = 'light-dark(#1a73e8, #8ab4f8)';
+			addNoteBtn.style.whiteSpace = 'nowrap';
+			navRow.appendChild(addNoteBtn);
+
 			header.appendChild(navRow);
 
 			panel.appendChild(header);
@@ -1803,7 +2019,8 @@ mxStencilRegistry.allowEval = false;
 			addTab: addTab,
 			switchTab: switchTab,
 			closeTab: closeTab,
-			openPreset: openPreset
+			openPreset: openPreset,
+			insertStickyNote: insertStickyNote
 		};
 	})();
 

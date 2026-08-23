@@ -1,6 +1,7 @@
 const {
     contextBridge,
-    ipcRenderer
+    ipcRenderer,
+    clipboard
 } = require("electron");
 
 // One-shot migration: when the main process determines this is the first
@@ -101,6 +102,10 @@ contextBridge.exposeInMainWorld(
 			{
 				callback(args);
 			});
+		},
+		clipboard: {
+			readText: () => clipboard.readText(),
+			writeText: (t) => clipboard.writeText(t)
 		}
     }
 );
