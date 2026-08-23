@@ -1617,6 +1617,21 @@ mxStencilRegistry.allowEval = false;
 				}
 			});
 
+			wv.addEventListener('new-window', function(e)
+			{
+				if (e.url && (e.url.startsWith('http://') || e.url.startsWith('https://')))
+				{
+					if (e.url.includes('google.com') || e.url.includes('anthropic.com') || e.url.includes('claude.ai') || e.url.includes('openai.com') || e.url.includes('chatgpt.com'))
+					{
+						wv.loadURL(e.url);
+					}
+					else
+					{
+						addTab(e.url, '新しいタブ');
+					}
+				}
+			});
+
 			webviewContainer.appendChild(wv);
 			tabs.push(tabObj);
 			switchTab(tabId);

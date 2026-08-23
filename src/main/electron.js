@@ -686,11 +686,10 @@ app.whenReady().then(() =>
 	const safariUserAgent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.6 Safari/605.1.15';
 	aiBrowserSession.setUserAgent(chromeUserAgent);
 
-	// Ensure headers never send Electron identifiers to Google/OpenAI/Claude to allow OAuth sign-in
+	// Ensure headers never send Electron identifiers to Google/OpenAI/Claude to allow OAuth sign-in and Cloudflare clearance
 	aiBrowserSession.webRequest.onBeforeSendHeaders((details, callback) => {
-		const isGoogle = details.url.includes('google.com') || details.url.includes('google.co.jp') || details.url.includes('accounts.google');
+		const isGoogle = details.url.includes('google.com') || details.url.includes('google.co.jp') || details.url.includes('accounts.google') || details.url.includes('gstatic.com');
 		
-		// For Google OAuth, use Safari User-Agent to bypass Google's "disallowed_useragent" check
 		if (isGoogle)
 		{
 			details.requestHeaders['User-Agent'] = safariUserAgent;
@@ -702,8 +701,12 @@ app.whenReady().then(() =>
 		else
 		{
 			details.requestHeaders['User-Agent'] = chromeUserAgent;
+			details.requestHeaders['sec-ch-ua'] = '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"';
+			details.requestHeaders['sec-ch-ua-mobile'] = '?0';
+			details.requestHeaders['sec-ch-ua-platform'] = '"macOS"';
 		}
 
+		delete details.requestHeaders['X-Requested-With'];
 		callback({ cancel: false, requestHeaders: details.requestHeaders });
 	});
 
