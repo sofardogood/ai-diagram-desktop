@@ -83,8 +83,7 @@ autoUpdater.autoInstallOnAppQuit = silentUpdate
 const UPDATE_DOWNLOAD_URL = 'https://get.draw.io';
 let updateFailureDialogShown = false;
 let aiBrowserSession = null;
-const chromeUserAgent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
-const safariUserAgent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.6 Safari/605.1.15';
+const aiUserAgent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.3 Safari/605.1.15';
 
 // Shows a user-facing fallback message when the in-app updater fails for any reason.
 // Deduped within a short window so a single underlying failure (which can fan out into
@@ -685,28 +684,15 @@ app.whenReady().then(() =>
 
 	// Persistent session configuration for AI Browser (ChatGPT, Claude, Google Login, etc.)
 	aiBrowserSession = session.fromPartition('persist:drawio_ai_browser');
-	aiBrowserSession.setUserAgent(chromeUserAgent);
+	aiBrowserSession.setUserAgent(aiUserAgent);
 
 	// Ensure headers never send Electron identifiers to Google/OpenAI/Claude to allow OAuth sign-in and Cloudflare clearance
 	aiBrowserSession.webRequest.onBeforeSendHeaders((details, callback) => {
-		const isGoogle = details.url.includes('google.com') || details.url.includes('google.co.jp') || details.url.includes('accounts.google') || details.url.includes('gstatic.com');
-		
-		if (isGoogle)
-		{
-			details.requestHeaders['User-Agent'] = safariUserAgent;
-			delete details.requestHeaders['sec-ch-ua'];
-			delete details.requestHeaders['sec-ch-ua-mobile'];
-			delete details.requestHeaders['sec-ch-ua-platform'];
-			delete details.requestHeaders['sec-ch-ua-platform-version'];
-		}
-		else
-		{
-			details.requestHeaders['User-Agent'] = chromeUserAgent;
-			details.requestHeaders['sec-ch-ua'] = '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"';
-			details.requestHeaders['sec-ch-ua-mobile'] = '?0';
-			details.requestHeaders['sec-ch-ua-platform'] = '"macOS"';
-		}
-
+		details.requestHeaders['User-Agent'] = aiUserAgent;
+		delete details.requestHeaders['sec-ch-ua'];
+		delete details.requestHeaders['sec-ch-ua-mobile'];
+		delete details.requestHeaders['sec-ch-ua-platform'];
+		delete details.requestHeaders['sec-ch-ua-platform-version'];
 		delete details.requestHeaders['X-Requested-With'];
 		callback({ cancel: false, requestHeaders: details.requestHeaders });
 	});
@@ -1813,7 +1799,7 @@ app.on('web-contents-created', (event, contents) => {
 
 	if (isAiBrowser)
 	{
-		contents.setUserAgent(chromeUserAgent);
+		contents.setUserAgent(aiUserAgent);
 	}
 
 	// Disable navigation for main draw.io editor, but allow webviews and AI OAuth popups to navigate freely
