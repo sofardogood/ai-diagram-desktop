@@ -82,6 +82,9 @@ autoUpdater.autoInstallOnAppQuit = silentUpdate
 
 const UPDATE_DOWNLOAD_URL = 'https://get.draw.io';
 let updateFailureDialogShown = false;
+let aiBrowserSession = null;
+const chromeUserAgent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+const safariUserAgent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.6 Safari/605.1.15';
 
 // Shows a user-facing fallback message when the in-app updater fails for any reason.
 // Deduped within a short window so a single underlying failure (which can fan out into
@@ -681,9 +684,7 @@ app.whenReady().then(() =>
 	});
 
 	// Persistent session configuration for AI Browser (ChatGPT, Claude, Google Login, etc.)
-	const aiBrowserSession = session.fromPartition('persist:drawio_ai_browser');
-	const chromeUserAgent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
-	const safariUserAgent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.6 Safari/605.1.15';
+	aiBrowserSession = session.fromPartition('persist:drawio_ai_browser');
 	aiBrowserSession.setUserAgent(chromeUserAgent);
 
 	// Ensure headers never send Electron identifiers to Google/OpenAI/Claude to allow OAuth sign-in and Cloudflare clearance
