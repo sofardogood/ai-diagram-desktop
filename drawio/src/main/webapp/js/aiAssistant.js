@@ -1061,12 +1061,61 @@
 					var rect = browserBtn.getBoundingClientRect();
 					ui.showPopupMenu(function(m, p)
 					{
-						m.addItem('🤖 ChatGPT (chatgpt.com)', null, function() { window.drawioAiBrowser.openPreset('https://chatgpt.com', 'ChatGPT'); }, p);
-						m.addItem('🔮 Claude (claude.ai)', null, function() { window.drawioAiBrowser.openPreset('https://claude.ai', 'Claude'); }, p);
-						m.addItem('✨ Gemini (gemini.google.com)', null, function() { window.drawioAiBrowser.openPreset('https://gemini.google.com', 'Gemini'); }, p);
-						m.addItem('🔍 Perplexity (perplexity.ai)', null, function() { window.drawioAiBrowser.openPreset('https://www.perplexity.ai', 'Perplexity'); }, p);
+						var defaultFavs = [
+							{ name: 'ChatGPT', url: 'https://chatgpt.com', icon: '🤖' },
+							{ name: 'Claude', url: 'https://claude.ai', icon: '🧠' },
+							{ name: 'Gemini', url: 'https://gemini.google.com', icon: '✨' },
+							{ name: 'Perplexity', url: 'https://www.perplexity.ai', icon: '🔍' }
+						];
+						var favs = defaultFavs;
+						try
+						{
+							var saved = localStorage.getItem('.aiBrowserFavorites');
+							if (saved)
+							{
+								var parsed = JSON.parse(saved);
+								if (Array.isArray(parsed) && parsed.length > 0) favs = parsed;
+							}
+						}
+						catch (e) {}
+
+						favs.forEach(function(item)
+						{
+							var icon = item.icon || '⭐';
+							m.addItem(icon + ' ' + item.name + ' (' + item.url.replace(/^https?:\/\//, '') + ')', null, function()
+							{
+								window.drawioAiBrowser.openPreset(item.url, item.name);
+							}, p);
+						});
+
 						m.addSeparator(p);
-						m.addItem(window.drawioAiBrowser.isAutoSticky() ? '📌 自動付箋モード: ON' : '📌 自動付箋モード: OFF', null, function()
+						m.addItem('⭐ ＋ 新しいお気に入りサイトを追加...', null, function()
+						{
+							var siteName = prompt('お気に入りの名前を入力してください (例: DeepSeek):', '');
+							if (!siteName) return;
+							var siteUrl = prompt('サイトのURLを入力してください (例: https://chat.deepseek.com):', 'https://');
+							if (!siteUrl) return;
+							if (!/^https?:\/\//i.test(siteUrl)) siteUrl = 'https://' + siteUrl;
+
+							var curFavs = favs.slice();
+							var icon = '⭐';
+							if (siteUrl.includes('deepseek')) icon = '🐋';
+							else if (siteUrl.includes('notion')) icon = '📚';
+							else if (siteUrl.includes('github')) icon = '🐙';
+							curFavs.push({ name: siteName.trim(), url: siteUrl.trim(), icon: icon });
+							try { localStorage.setItem('.aiBrowserFavorites', JSON.stringify(curFavs)); } catch (e) {}
+							ui.alert('⭐ お気に入りに追加しました: ' + siteName);
+						}, p);
+						m.addItem('🗑️ お気に入りを初期状態にリセット', null, function()
+						{
+							if (confirm('お気に入りを初期状態（ChatGPT / Claude / Gemini / Perplexity）にリセットしますか？'))
+							{
+								try { localStorage.removeItem('.aiBrowserFavorites'); } catch (e) {}
+								ui.alert('お気に入りを初期化しました。');
+							}
+						}, p);
+						m.addSeparator(p);
+						m.addItem(window.drawioAiBrowser.isAutoSticky() ? '📌 自動付箋モード: ON (クリックでOFF)' : '📌 自動付箋モード: OFF (クリックでON)', null, function()
 						{
 							window.drawioAiBrowser.toggleAutoSticky();
 						}, p);

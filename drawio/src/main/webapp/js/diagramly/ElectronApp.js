@@ -1238,6 +1238,8 @@ mxStencilRegistry.allowEval = false;
 		var webviewContainer = null;
 		var urlInput = null;
 		var autoStickyBtn = null;
+		var presetGroup = null;
+		var favStarBtn = null;
 		var isOpen = false;
 		var tabs = []; // [{ id, title, url, webview, titleSpan }]
 		var activeTabId = null;
@@ -1247,6 +1249,242 @@ mxStencilRegistry.allowEval = false;
 		var stickyNoteCounter = 0;
 		var currentWidth = parseInt(localStorage.getItem('.aiBrowserWidth') || '520', 10);
 		if (isNaN(currentWidth) || currentWidth < 360) currentWidth = 520;
+
+		// ----------------------------------------------------
+		// 🌟 Favorites / Bookmarks System
+		// ----------------------------------------------------
+		var defaultFavorites = [
+			{ name: 'ChatGPT', url: 'https://chatgpt.com', icon: '🤖' },
+			{ name: 'Claude', url: 'https://claude.ai', icon: '🧠' },
+			{ name: 'Gemini', url: 'https://gemini.google.com', icon: '✨' },
+			{ name: 'Perplexity', url: 'https://www.perplexity.ai', icon: '🔍' }
+		];
+
+		function getFavorites()
+		{
+			try
+			{
+				var saved = localStorage.getItem('.aiBrowserFavorites');
+				if (saved)
+				{
+					var parsed = JSON.parse(saved);
+					if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+				}
+			}
+			catch (e) {}
+			return defaultFavorites.slice();
+		}
+
+		function saveFavorites(favs)
+		{
+			try
+			{
+				localStorage.setItem('.aiBrowserFavorites', JSON.stringify(favs));
+			}
+			catch (e) {}
+			renderFavorites();
+			syncUrlBar();
+		}
+
+		function isBookmarked(targetUrl)
+		{
+			if (!targetUrl) return null;
+			var clean = targetUrl.replace(/^https?:\/\//i, '').replace(/\/$/, '').toLowerCase();
+			var favs = getFavorites();
+			for (var i = 0; i < favs.length; i++)
+			{
+				var fClean = (favs[i].url || '').replace(/^https?:\/\//i, '').replace(/\/$/, '').toLowerCase();
+				if (clean === fClean || (fClean.length > 5 && clean.indexOf(fClean) === 0) || (clean.length > 5 && fClean.indexOf(clean) === 0))
+				{
+					return favs[i];
+				}
+			}
+			return null;
+		}
+
+		function showManageFavoriteModal(favItem)
+		{
+			var overlay = document.createElement('div');
+			overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.45);z-index:99999;display:flex;align-items:center;justify-content:center;';
+			
+			var box = document.createElement('div');
+			box.style.cssText = 'background:#ffffff;padding:22px;border-radius:10px;box-shadow:0 6px 24px rgba(0,0,0,0.25);width:360px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#202124;';
+			
+			var h3 = document.createElement('h3');
+			h3.style.cssText = 'margin:0 0 16px 0;font-size:16px;font-weight:600;display:flex;align-items:center;gap:6px;';
+			h3.innerHTML = favItem ? '⭐ お気に入りの編集' : '⭐ 新規お気に入りの追加';
+			box.appendChild(h3);
+
+			var nameLabel = document.createElement('div');
+			nameLabel.style.cssText = 'font-size:12px;margin-bottom:5px;color:#5f6368;font-weight:600;';
+			nameLabel.textContent = 'タイトル / サイト名:';
+			box.appendChild(nameLabel);
+
+			var nameInput = document.createElement('input');
+			nameInput.type = 'text';
+			var active = getActiveTab();
+			nameInput.value = favItem ? favItem.name : ((active && active.title) || '');
+			nameInput.placeholder = '例: DeepSeek / Notion / GitHub';
+			nameInput.style.cssText = 'width:100%;box-sizing:border-box;padding:8px 10px;font-size:13px;border:1px solid #dadce0;border-radius:6px;margin-bottom:14px;outline:none;';
+			box.appendChild(nameInput);
+
+			var urlLabel = document.createElement('div');
+			urlLabel.style.cssText = 'font-size:12px;margin-bottom:5px;color:#5f6368;font-weight:600;';
+			urlLabel.textContent = 'URL:';
+			box.appendChild(urlLabel);
+
+			var urlInputEl = document.createElement('input');
+			urlInputEl.type = 'text';
+			urlInputEl.value = favItem ? favItem.url : ((active && active.webview && active.webview.src) || (active && active.url) || 'https://');
+			urlInputEl.style.cssText = 'width:100%;box-sizing:border-box;padding:8px 10px;font-size:13px;border:1px solid #dadce0;border-radius:6px;margin-bottom:18px;outline:none;';
+			box.appendChild(urlInputEl);
+
+			var btnRow = document.createElement('div');
+			btnRow.style.cssText = 'display:flex;justify-content:space-between;align-items:center;gap:8px;';
+
+			var leftGroup = document.createElement('div');
+			if (favItem)
+			{
+				var delBtn = document.createElement('button');
+				delBtn.textContent = '削除';
+				delBtn.style.cssText = 'padding:6px 12px;font-size:12px;color:#d93025;background:#fce8e6;border:1px solid #fad2cf;border-radius:6px;cursor:pointer;font-weight:600;';
+				delBtn.onclick = function()
+				{
+					var favs = getFavorites().filter(function(f) { return f !== favItem && f.url !== favItem.url; });
+					saveFavorites(favs);
+					if (document.body.contains(overlay)) document.body.removeChild(overlay);
+					if (window.drawioAiUi && typeof showToast === 'function')
+					{
+						showToast(window.drawioAiUi, 'お気に入りから削除しました: ' + favItem.name);
+					}
+				};
+				leftGroup.appendChild(delBtn);
+			}
+			btnRow.appendChild(leftGroup);
+
+			var rightGroup = document.createElement('div');
+			rightGroup.style.cssText = 'display:flex;gap:8px;';
+
+			var cancelBtn = document.createElement('button');
+			cancelBtn.textContent = 'キャンセル';
+			cancelBtn.style.cssText = 'padding:6px 12px;font-size:12px;background:#f1f3f4;border:1px solid #dadce0;border-radius:6px;cursor:pointer;color:#3c4043;font-weight:500;';
+			cancelBtn.onclick = function()
+			{
+				if (document.body.contains(overlay)) document.body.removeChild(overlay);
+			};
+			rightGroup.appendChild(cancelBtn);
+
+			var saveBtn = document.createElement('button');
+			saveBtn.textContent = '保存';
+			saveBtn.style.cssText = 'padding:6px 16px;font-size:12px;background:#1a73e8;border:none;border-radius:6px;cursor:pointer;color:#ffffff;font-weight:600;';
+			saveBtn.onclick = function()
+			{
+				var newName = nameInput.value.trim();
+				var newUrl = urlInputEl.value.trim();
+				if (!newName || !newUrl) return;
+				if (!/^https?:\/\//i.test(newUrl)) newUrl = 'https://' + newUrl;
+
+				var favs = getFavorites();
+				if (favItem)
+				{
+					favItem.name = newName;
+					favItem.url = newUrl;
+				}
+				else
+				{
+					var icon = '⭐';
+					if (newUrl.includes('chatgpt')) icon = '🤖';
+					else if (newUrl.includes('claude')) icon = '🧠';
+					else if (newUrl.includes('gemini')) icon = '✨';
+					else if (newUrl.includes('perplexity')) icon = '🔍';
+					else if (newUrl.includes('deepseek')) icon = '🐋';
+					else if (newUrl.includes('notion')) icon = '📚';
+					else if (newUrl.includes('github')) icon = '🐙';
+					else if (newUrl.includes('google')) icon = '🌐';
+					favs.push({ name: newName, url: newUrl, icon: icon });
+				}
+				saveFavorites(favs);
+				if (document.body.contains(overlay)) document.body.removeChild(overlay);
+				if (window.drawioAiUi && typeof showToast === 'function')
+				{
+					showToast(window.drawioAiUi, '⭐ お気に入りに登録しました: ' + newName);
+				}
+			};
+			rightGroup.appendChild(saveBtn);
+
+			btnRow.appendChild(rightGroup);
+			box.appendChild(btnRow);
+			overlay.appendChild(box);
+			document.body.appendChild(overlay);
+			nameInput.focus();
+		}
+
+		function renderFavorites()
+		{
+			if (!presetGroup) return;
+			presetGroup.innerHTML = '';
+
+			var favs = getFavorites();
+			favs.forEach(function(item)
+			{
+				var btn = document.createElement('button');
+				var icon = item.icon || '⭐';
+				btn.textContent = icon + ' ' + item.name;
+				btn.setAttribute('title', item.name + ' (' + item.url + ')\n右クリックでお気に入りの編集・削除');
+				btn.style.cssText = 'display:inline-flex;align-items:center;gap:3px;padding:3px 8px;font-size:11px;font-weight:600;border-radius:4px;border:1px solid #dadce0;background:#f8f9fa;color:#202124;cursor:pointer;white-space:nowrap;user-select:none;transition:all 0.1s ease;';
+				btn.addEventListener('mouseenter', function() { btn.style.background = '#e8f0fe'; btn.style.borderColor = '#1a73e8'; });
+				btn.addEventListener('mouseleave', function() { btn.style.background = '#f8f9fa'; btn.style.borderColor = '#dadce0'; });
+				btn.addEventListener('click', function()
+				{
+					openPreset(item.url, item.name);
+				});
+				btn.addEventListener('contextmenu', function(e)
+				{
+					e.preventDefault();
+					showManageFavoriteModal(item);
+				});
+				presetGroup.appendChild(btn);
+			});
+
+			// Add "+" button to add custom bookmark
+			var addFavBtn = document.createElement('button');
+			addFavBtn.textContent = '＋ 追加';
+			addFavBtn.setAttribute('title', '新しいサイトをお気に入りに追加');
+			addFavBtn.style.cssText = 'padding:3px 7px;font-size:11px;font-weight:600;border-radius:4px;border:1px dashed #1a73e8;background:#ffffff;color:#1a73e8;cursor:pointer;white-space:nowrap;';
+			addFavBtn.addEventListener('mouseenter', function() { addFavBtn.style.background = '#f0f6ff'; });
+			addFavBtn.addEventListener('mouseleave', function() { addFavBtn.style.background = '#ffffff'; });
+			addFavBtn.addEventListener('click', function()
+			{
+				showManageFavoriteModal(null);
+			});
+			presetGroup.appendChild(addFavBtn);
+		}
+
+		function syncUrlBar()
+		{
+			var active = getActiveTab();
+			if (active && urlInput)
+			{
+				var curUrl = (active.webview && active.webview.src) || active.url || '';
+				urlInput.value = curUrl;
+				if (favStarBtn)
+				{
+					var bm = isBookmarked(curUrl);
+					if (bm)
+					{
+						favStarBtn.innerHTML = '★';
+						favStarBtn.style.color = '#f59e0b';
+						favStarBtn.setAttribute('title', 'お気に入りに登録済み: ' + bm.name + ' (クリックで編集・削除)');
+					}
+					else
+					{
+						favStarBtn.innerHTML = '☆';
+						favStarBtn.style.color = '#5f6368';
+						favStarBtn.setAttribute('title', 'このページをお気に入りに追加');
+					}
+				}
+			}
+		}
 
 		function isAutoSticky()
 		{
@@ -1808,7 +2046,7 @@ mxStencilRegistry.allowEval = false;
 			tabRow.appendChild(closePanelBtn);
 			header.appendChild(tabRow);
 
-			// Row 2: Preset Quick Buttons & Auto-Sticky Toggle
+			// Row 2: Dynamic Favorites Quick Bar & Auto-Sticky Toggle
 			var presetRow = document.createElement('div');
 			presetRow.style.display = 'flex';
 			presetRow.style.alignItems = 'center';
@@ -1818,34 +2056,14 @@ mxStencilRegistry.allowEval = false;
 			presetRow.style.borderTop = '1px solid light-dark(#dadce0, #3c4043)';
 			presetRow.style.borderBottom = '1px solid light-dark(#dadce0, #3c4043)';
 
-			var presetGroup = document.createElement('div');
+			presetGroup = document.createElement('div');
 			presetGroup.style.display = 'flex';
 			presetGroup.style.alignItems = 'center';
 			presetGroup.style.gap = '4px';
-
-			function createPresetBtn(label, url)
-			{
-				var btn = document.createElement('button');
-				btn.textContent = label;
-				btn.style.padding = '3px 8px';
-				btn.style.fontSize = '11px';
-				btn.style.fontWeight = '600';
-				btn.style.borderRadius = '4px';
-				btn.style.border = '1px solid light-dark(#dadce0, #5f6368)';
-				btn.style.backgroundColor = 'light-dark(#f8f9fa, #292a2d)';
-				btn.style.color = 'inherit';
-				btn.style.cursor = 'pointer';
-				btn.addEventListener('click', function()
-				{
-					openPreset(url, label);
-				});
-				return btn;
-			}
-
-			presetGroup.appendChild(createPresetBtn('ChatGPT', 'https://chatgpt.com'));
-			presetGroup.appendChild(createPresetBtn('Claude', 'https://claude.ai'));
-			presetGroup.appendChild(createPresetBtn('Gemini', 'https://gemini.google.com'));
-			presetGroup.appendChild(createPresetBtn('Perplexity', 'https://www.perplexity.ai'));
+			presetGroup.style.overflowX = 'auto';
+			presetGroup.style.flex = '1';
+			presetGroup.style.paddingRight = '8px';
+			renderFavorites();
 			presetRow.appendChild(presetGroup);
 
 			// Auto Sticky Note Toggle Button
@@ -1860,6 +2078,7 @@ mxStencilRegistry.allowEval = false;
 			autoStickyBtn.style.userSelect = 'none';
 			autoStickyBtn.style.outline = 'none';
 			autoStickyBtn.style.transition = 'all 0.15s ease-in-out';
+			autoStickyBtn.style.flexShrink = '0';
 			updateAutoStickyBtnUI();
 
 			function handleToggle(e)
@@ -1877,7 +2096,7 @@ mxStencilRegistry.allowEval = false;
 			presetRow.appendChild(autoStickyBtn);
 			header.appendChild(presetRow);
 
-			// Row 3: Navigation buttons, URL bar & Quick Add Note
+			// Row 3: Navigation buttons, URL bar, Favorite Star & Quick Add Note
 			var navRow = document.createElement('div');
 			navRow.style.display = 'flex';
 			navRow.style.alignItems = 'center';
@@ -1960,6 +2179,37 @@ mxStencilRegistry.allowEval = false;
 				}
 			});
 			navRow.appendChild(urlInput);
+
+			// ⭐ Favorite Star Button for current page
+			favStarBtn = document.createElement('button');
+			favStarBtn.style.padding = '3px 8px';
+			favStarBtn.style.fontSize = '14px';
+			favStarBtn.style.borderRadius = '4px';
+			favStarBtn.style.border = '1px solid light-dark(#dadce0, #5f6368)';
+			favStarBtn.style.backgroundColor = 'light-dark(#ffffff, #2d2f31)';
+			favStarBtn.style.color = '#5f6368';
+			favStarBtn.style.cursor = 'pointer';
+			favStarBtn.style.lineHeight = '1';
+			favStarBtn.style.userSelect = 'none';
+			favStarBtn.style.outline = 'none';
+			favStarBtn.innerHTML = '☆';
+			favStarBtn.setAttribute('title', 'このページをお気に入りに追加');
+			favStarBtn.addEventListener('click', function()
+			{
+				var active = getActiveTab();
+				if (!active) return;
+				var curUrl = (active.webview && active.webview.src) || active.url || '';
+				var existing = isBookmarked(curUrl);
+				if (existing)
+				{
+					showManageFavoriteModal(existing);
+				}
+				else
+				{
+					showManageFavoriteModal(null);
+				}
+			});
+			navRow.appendChild(favStarBtn);
 
 			// Manual Quick "＋ 付箋化" Button
 			var addNoteBtn = createNavBtn('＋ 付箋化', '選択中のテキストまたはクリップボード内容を付箋としてキャンバスに追加', function()
