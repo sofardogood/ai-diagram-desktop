@@ -1,5 +1,9 @@
 # AI Diagram Editor / Studio (Desktop & Web) 🚀
 
+## 公開プレビューへのリンク
+
+[ai-diagram-desktop を開く](https://sofardogood.github.io/ai-diagram-desktop/)
+
 ## 📖 リポジトリ概要 (Overview)
 
 **AI Diagram Editor (AI Diagram Studio)** は、[draw.io (JGraph)](https://github.com/jgraph/drawio-desktop) および Electron をベースに構築された、**AIネイティブ・オフラインファーストの次世代ダイアグラム作成デスクトップ＆Webアプリケーション**です。
